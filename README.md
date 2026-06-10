@@ -1,4 +1,4 @@
-# EDA — Predicción de Formaciones SENA
+# Predicción de Deserción Estudiantil — SENA Centro Amazonas
 
 ## Descripción del dataset
 
@@ -20,17 +20,27 @@
 
 ```
 PROYECTO_ANALITICA/
-├── EDA_Formacion_SENA.ipynb          # Notebook principal con el EDA completo
-├── dataset_formacion_sena.csv        # Dataset procesado
+├── EDA_Formacion_SENA.ipynb          # Parte 1 — EDA completo
+├── dataset_formacion_sena.csv        # Dataset procesado (153 fichas × 38 vars)
+├── requirements.txt                  # Dependencias del proyecto
 ├── DATOS/                            # Archivos fuente XML exportados de Sofia Plus
 │   ├── DF-04_1.xml
-│   ├── DF-08_1.xml
-│   ├── DF-09_1.xml
-│   ├── DF-10_1.xml
-│   ├── DF-12_1.xml
-│   ├── DF-13_1.xml
-│   ├── DF-14_1.xml
-│   └── DF-14A_1.xml
+│   ├── DF-08_1.xml … DF-14A_1.xml
+│
+├── parte2/
+│   └── 01_modeling_pipeline.ipynb    # Parte 2 — Pipeline MLflow + 6 modelos
+│
+├── api/                              # Despliegue REST
+│   ├── main.py                       # FastAPI app
+│   ├── requirements.txt              # Dependencias de la API
+│   └── models/                       # Modelos exportados (generados por el notebook)
+│       ├── mejor_clasificador.pkl
+│       ├── mejor_regresor.pkl
+│       └── model_metadata.json
+│
+├── Dockerfile                        # Imagen Docker de la API
+├── docker-compose.yml                # API + MLflow UI
+├── mlruns/                           # Artefactos MLflow (generados por el notebook)
 └── docs/
     └── Documento_Explicacion_Celdas_EDA_Formacion_SENA.md
 ```
@@ -52,3 +62,74 @@ PROYECTO_ANALITICA/
 - **Variable redundante:** `DURACION_ETAPA_LECTIVA` (r = 0.98 con `DURACION_MAXIMA`)
 - **Data leakage a excluir:** `TOTAL_DESERCION`, `CERTIFICADO`, `CANCELADO`, `RETIRO_VOLUNTARIO`
 - **Features seleccionadas para modelado:** `NIVEL_FORMACION`, `JORNADA`, `TRIMESTRE_APERTURA`, `AÑO_APERTURA`, `CUPO`, `DURACION_MAXIMA`, `OCUPACION_CUPO`, `PROGRAMA_ESPECIAL`
+
+---
+
+## Parte 2 — Pipeline de Modelado y Despliegue
+
+### Modelos entrenados
+
+| Tarea | Modelo | Optimización |
+|---|---|---|
+| Clasificación | Logistic Regression (baseline) | GridSearchCV |
+| Clasificación | Random Forest Classifier | RandomizedSearchCV |
+| Clasificación | XGBoost Classifier | RandomizedSearchCV |
+| Regresión | Ridge Regression (baseline) | GridSearchCV |
+| Regresión | Random Forest Regressor | RandomizedSearchCV |
+| Regresión | XGBoost Regressor | RandomizedSearchCV |
+
+**Métrica clave clasificación:** Recall clase Alta — minimizar falsos negativos (fichas en riesgo que no son detectadas).
+
+### Cómo ejecutar
+
+**1. Instalar dependencias**
+```bash
+pip install -r requirements.txt
+```
+
+**2. Entrenar modelos y registrar experimentos**
+```bash
+# Ejecutar el notebook completo
+jupyter notebook parte2/01_modeling_pipeline.ipynb
+```
+
+**3. Ver experimentos en MLflow UI**
+```bash
+mlflow ui --backend-store-uri mlruns
+# Abrir http://localhost:5000
+```
+
+**4. Levantar la API con Docker**
+```bash
+# Construir y arrancar
+docker compose up --build
+
+# API disponible en http://localhost:8000/docs
+# MLflow UI en http://localhost:5000
+```
+
+**5. Probar la API**
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "NIVEL_FORMACION": "TÉCNICO",
+    "JORNADA": "NOCTURNA",
+    "TRIMESTRE_APERTURA": 3,
+    "AÑO_APERTURA": 2024,
+    "CUPO": 30,
+    "DURACION_MAXIMA": 2112,
+    "OCUPACION_CUPO": 0.85,
+    "PROGRAMA_ESPECIAL": "NO"
+  }'
+```
+
+### Endpoints de la API
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/health` | Estado del servicio |
+| GET | `/models/info` | Info de los modelos cargados |
+| POST | `/predict` | Predicción individual |
+| POST | `/predict/batch` | Predicción en lote (máx. 500 fichas) |
+| GET | `/docs` | Documentación interactiva (Swagger UI) |
