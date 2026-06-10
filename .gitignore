@@ -1,0 +1,44 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.venv/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Modelos entrenados (regenerar ejecutando el notebook)
+api/models/*.pkl
+api/models/model_metadata.json
+
+# MLflow artifacts (pueden ser grandes)
+mlruns/
+
+# Datos sensibles
+*.env
+.env.*
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Imágenes generadas
+docs/*.png
